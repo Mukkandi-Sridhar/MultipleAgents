@@ -9,6 +9,8 @@ services:
     envVars:
       - key: PORT
         value: "8000"
+      - key: PYTHON_VERSION
+        value: "3.11"
       - key: OPENAI_API_KEY
         sync: false # Set in the Render dashboard
       - key: FRONTEND_ORIGINS
