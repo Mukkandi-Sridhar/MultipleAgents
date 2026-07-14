@@ -1,0 +1,50 @@
+[
+  {
+    "question": "What is Aether Agents?",
+    "answer": "Aether Agents is a multi-agent productivity portal hosting specialized virtual assistants for sales, support, reporting, and learning."
+  },
+  {
+    "question": "How much does Aether Agents cost?",
+    "answer": "Aether Agents is free to use for personal portfolios. For custom commercial deployments, pricing starts at $29/month per developer seat."
+  },
+  {
+    "question": "Can I use my own OpenAI API key?",
+    "answer": "Yes, you can configure your own OpenAI API key in the backend environment file (.env) to run the agents in real mode."
+  },
+  {
+    "question": "How do I add a new custom agent?",
+    "answer": "You can add a custom agent by creating a new router under backend/routers/ and mounting it in backend/main.py, mirroring the existing agents."
+  },
+  {
+    "question": "What is Mock Mode?",
+    "answer": "Mock Mode allows Aether Agents to run fully locally without any external LLM api keys, providing instant high-quality static responses for testing."
+  },
+  {
+    "question": "Is my data secure with Aether Agents?",
+    "answer": "Yes. Data is processed locally on your server. When using API keys, requests are sent directly to OpenAI's endpoints securely and are not stored."
+  },
+  {
+    "question": "Do you support PDF analysis in the Document Agent?",
+    "answer": "The MVP version of the Document Agent supports CSV and JSON data parsing. Full PDF extraction and vector database search is planned for v2."
+  },
+  {
+    "question": "How do I escalate to a human customer support agent?",
+    "answer": "If you ask a question outside our standard FAQ articles, the Support Agent will automatically toggle human escalation and hand off your chat."
+  },
+  {
+    "question": "How does the Language Agent track streaks?",
+    "answer": "The Language Learning Agent tracks consecutive practice sessions in-memory. Each corrected sentence grants +10 XP and increments your active streak."
+  },
+  {
+    "question": "Does Aether Agents support voice speech-to-text?",
+    "answer": "The portfolio version uses text input only. Live microphone support using OpenAI Whisper API is on the development roadmap."
+  },
+  {
+    "question": "What backend technology is used?",
+    "answer": "Aether Agents uses a Python FastAPI framework for fast, high-performance async API routing combined with standard Pydantic validation."
+  },
+  {
+    "question": "What frontend framework is used?",
+    "answer": "The frontend is built using React 19, TypeScript, Vite, Tailwind CSS, and Lucide React icons."
+  }
+]
