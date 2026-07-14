@@ -1,38 +1,10 @@
 services:
-  # Backend API service
+  # Single web service serving both frontend and backend
   - type: web
-    name: aether-agents-api
-    runtime: python
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    name: multiple-agents
+    runtime: docker
     envVars:
       - key: PORT
         value: "8000"
-      - key: PYTHON_VERSION
-        value: "3.11"
       - key: OPENAI_API_KEY
         sync: false # Set in the Render dashboard
-      - key: FRONTEND_ORIGINS
-        fromService:
-          name: aether-agents-frontend
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
-
-  # Frontend static site
-  - type: web
-    name: aether-agents-frontend
-    runtime: static
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_BASE_URL
-        fromService:
-          name: aether-agents-api
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
