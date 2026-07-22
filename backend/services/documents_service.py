@@ -44,7 +44,7 @@ def parse_data(data_raw: str, file_type: str):
             try:
                 float(v)
                 numeric_keys.append(k)
-            except ValueError:
+            except (ValueError, TypeError):
                 label_keys.append(k)
         
         # Pick default keys
@@ -73,18 +73,16 @@ def parse_data(data_raw: str, file_type: str):
     for k, v in list(label_sums.items())[:6]:  # Limit to top 6 categories
         data_points.append({"label": str(k), "value": float(v)})
         
-    if not data_points:
-        data_points = [
-            {"label": "Product A", "value": 150.0},
-            {"label": "Product B", "value": 320.0},
-            {"label": "Product C", "value": 240.0},
-            {"label": "Product D", "value": 110.0}
-        ]
-        record_count = 4
-        sum_value = 820.0
-        mean_value = 205.0
-        top_label = "Product B"
-        top_value = 320.0
+    if record_count == 0 or not data_points:
+        return {
+            "parse_error": "Couldn't detect numeric data in your file — check that it has at least one numeric column.",
+            "record_count": 0,
+            "sum_value": 0.0,
+            "mean_value": 0.0,
+            "top_label": "None",
+            "top_value": 0.0,
+            "data_points": []
+        }
         
     return {
         "record_count": record_count,
@@ -98,6 +96,8 @@ def parse_data(data_raw: str, file_type: str):
 def analyze_document(data_raw: str, file_type: str = "csv"):
     logger.info("Analyzing document data...")
     stats = parse_data(data_raw, file_type)
+    if "parse_error" in stats:
+        raise ValueError(stats["parse_error"])
     
     client = get_openai_client()
     logger.info("Executing document analysis via OpenAI Chat API.")

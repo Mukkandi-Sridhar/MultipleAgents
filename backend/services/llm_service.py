@@ -3,9 +3,12 @@ import json
 import logging
 from openai import OpenAI
 from config import settings
-from prompts import concept_explainer, answer_checker, mistake_diagnoser
+from prompts import concept_explainer, answer_checker, mistake_diagnoser, mastery_checker
 
 logger = logging.getLogger(__name__)
+
+class LLMServiceError(Exception):
+    pass
 
 def get_openai_client():
     if not settings.openai_api_key:
@@ -62,13 +65,8 @@ Do not include any explanation or extra characters, only valid JSON.
         data = json.loads(text)
         return data
     except Exception as e:
-        logger.error(f"Error in OCR/Vision extraction: {e}. Falling back to mock data.")
-        return {
-            "extracted_text": "Calculate: 12 x 15",
-            "subject": "Mathematics",
-            "concept": "Multiplication / Distributive Property",
-            "difficulty": "Easy"
-        }
+        logger.error(f"Error in OCR/Vision extraction: {e}")
+        raise LLMServiceError(f"OCR/Vision extraction failed: {str(e)}") from e
 
 def get_concept_explanation(extracted_text: str, subject: str, concept: str, difficulty: str):
     client = get_openai_client()
@@ -94,10 +92,7 @@ def get_concept_explanation(extracted_text: str, subject: str, concept: str, dif
         return json.loads(text)
     except Exception as e:
         logger.error(f"Error in concept explanation: {e}")
-        return {
-            "explanation": "Let's look at the core concept. We can break the problem into simpler parts to solve it step by step.",
-            "prompt": "Can you share what your first step would be to solve this problem?"
-        }
+        raise LLMServiceError(f"Concept explanation generation failed: {str(e)}") from e
 
 def evaluate_answer(extracted_text: str, student_answer: str, attempt_number: int):
     client = get_openai_client()
@@ -164,6 +159,35 @@ def evaluate_answer(extracted_text: str, student_answer: str, attempt_number: in
         logger.error(f"Error in mistake diagnoser API call: {e}")
         return {"check_failed": True, "error": f"Mistake diagnoser service call failed: {str(e)}"}
 
+def evaluate_mastery_answer(mastery_question: str, mastery_answer_expected: str, student_answer: str):
+    client = get_openai_client()
+
+    try:
+        user_prompt = mastery_checker.USER_PROMPT_TEMPLATE.format(
+            mastery_question=mastery_question,
+            mastery_answer_expected=mastery_answer_expected or "N/A",
+            student_answer=student_answer
+        )
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            max_tokens=1000,
+            messages=[
+                {"role": "system", "content": mastery_checker.SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
+            ]
+        )
+        text = response.choices[0].message.content.strip()
+        if "{" in text:
+            text = text[text.find("{"):text.rfind("}")+1]
+        result = json.loads(text)
+        return {
+            "correct": bool(result.get("correct", False)),
+            "feedback": str(result.get("feedback", ""))
+        }
+    except Exception as e:
+        logger.error(f"Error in mastery evaluation API call: {e}")
+        raise LLMServiceError(f"Mastery evaluation failed: {str(e)}") from e
+
 def classify_question_text(extracted_text: str):
     client = get_openai_client()
     system_prompt = """You are an expert academic classifier. Your task is to analyze the homework question text.
@@ -192,10 +216,4 @@ Do not include any explanation or extra characters, only valid JSON.
         return json.loads(text)
     except Exception as e:
         logger.error(f"Error in question text classification: {e}")
-        return {
-            "subject": "Mathematics",
-            "concept": "Unknown Concept",
-            "difficulty": "Medium"
-        }
-
-
+        raise LLMServiceError(f"Question text classification failed: {str(e)}") from e

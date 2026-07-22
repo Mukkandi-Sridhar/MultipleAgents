@@ -44,12 +44,15 @@ export const DocumentAgent: React.FC = () => {
           file_type: isJson ? 'json' : 'csv'
         })
       });
-      if (!response.ok) throw new Error('API server returned an error');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || 'API server returned an error');
+      }
       const data = await response.json();
       setResult(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError('Could not connect to the local server or call failed. Make sure the backend is running.');
+      setError(err.message || 'Could not connect to the local server or call failed.');
     } finally {
       setLoading(false);
     }

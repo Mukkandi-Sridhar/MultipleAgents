@@ -1,18 +1,23 @@
 import json
 import logging
+from typing import Dict
 from config import settings
 from prompts import language_prompts
 from services.llm_service import get_openai_client
 
 logger = logging.getLogger(__name__)
 
-# Simple in-memory storage for streak and XP
-STREAK_STATE = {"streak": 2, "xp": 120}
+# Simple in-memory per-user storage for streak and XP keyed by session_id
+USER_STREAK_STATE: Dict[str, dict] = {}
 
-def practice_language(student_text: str):
-    logger.info(f"Processing student sentence: '{student_text[:30]}...'")
-    STREAK_STATE["streak"] += 1
-    STREAK_STATE["xp"] += 10
+def practice_language(student_text: str, session_id: str = "default"):
+    logger.info(f"Processing student sentence for session '{session_id}': '{student_text[:30]}...'")
+    if session_id not in USER_STREAK_STATE:
+        USER_STREAK_STATE[session_id] = {"streak": 2, "xp": 120}
+    
+    state = USER_STREAK_STATE[session_id]
+    state["streak"] += 1
+    state["xp"] += 10
     
     client = get_openai_client()
     logger.info("Executing language tutor via OpenAI Chat API.")
@@ -33,6 +38,6 @@ def practice_language(student_text: str):
         "corrected_text": data.get("corrected_text"),
         "explanation": data.get("explanation"),
         "vocabulary_suggestion": data.get("vocabulary_suggestion"),
-        "streak": STREAK_STATE["streak"],
-        "xp": STREAK_STATE["xp"]
+        "streak": state["streak"],
+        "xp": state["xp"]
     }

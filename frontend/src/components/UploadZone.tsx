@@ -69,7 +69,8 @@ export const UploadZone: React.FC<UploadZoneProps> = ({ onUploadSuccess, onError
       });
 
       if (!response.ok) {
-        throw new Error('API server returned an error');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'API server returned an error');
       }
 
       const data = await response.json();
@@ -80,7 +81,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({ onUploadSuccess, onError
       }
     } catch (err: any) {
       console.error(err);
-      onError(`Could not connect to the local FastAPI server or LLM service failed. Ensure the backend is running at ${API_BASE_URL} and valid OpenAI API key is provided.`);
+      onError(err.message || `Could not connect to the local FastAPI server or LLM service failed. Ensure the backend is running at ${API_BASE_URL} and valid OpenAI API key is provided.`);
     } finally {
       if (timeout1Ref.current) clearTimeout(timeout1Ref.current);
       if (timeout2Ref.current) clearTimeout(timeout2Ref.current);

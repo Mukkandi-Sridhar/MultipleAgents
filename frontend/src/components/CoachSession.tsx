@@ -86,21 +86,43 @@ export const CoachSession: React.FC<CoachSessionProps> = ({ initialQuestion, onR
     }
   };
 
-  const handleMasterySubmit = (e: React.FormEvent) => {
+  const handleMasterySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!masteryInput.trim()) return;
- 
-    const expected = session.question.mastery_answer || '195';
-    const isCorrect = masteryInput.toLowerCase().includes(expected.toLowerCase().trim());
-    
-    setSession((prev) => ({
-      ...prev,
-      masteryQuestionAnswered: true,
-      masteryConfirmed: isCorrect,
-      masteryFeedback: isCorrect 
-        ? "Superb! You've verified your complete mastery of the distributive method." 
-        : `Not quite ${expected}. But you still did an awesome job learning the steps today!`
-    }));
+    if (!masteryInput.trim() || loading) return;
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/mastery-check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mastery_question: session.question.prompt,
+          mastery_answer: session.question.mastery_answer || '',
+          student_answer: masteryInput,
+        }),
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.detail || 'Failed to check mastery answer');
+      }
+
+      const result = await response.json();
+
+      setSession((prev) => ({
+        ...prev,
+        masteryQuestionAnswered: true,
+        masteryConfirmed: Boolean(result.correct),
+        masteryFeedback: result.feedback || (result.correct ? "Superb! You've verified your complete mastery." : "Good effort!")
+      }));
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Connection to mastery checking service failed. Please check backend log.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getDifficultyBadge = (difficulty: string) => {
@@ -342,15 +364,28 @@ export const CoachSession: React.FC<CoachSessionProps> = ({ initialQuestion, onR
                     type="text"
                     value={masteryInput}
                     onChange={(e) => setMasteryInput(e.target.value)}
-                    placeholder="Enter answer (Hint: For 13 x 15, try distributive method)..."
+                    placeholder="Enter your answer for the mastery check..."
+                    disabled={loading}
                     className="flex-1 glass-input"
                     required
                   />
-                  <button type="submit" className="btn-primary flex items-center space-x-2">
-                    <span>Submit Check</span>
-                    <ArrowRight className="w-4 h-4" />
+                  <button type="submit" disabled={loading || !masteryInput.trim()} className="btn-primary flex items-center space-x-2">
+                    {loading ? (
+                      <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    ) : (
+                      <>
+                        <span>Submit Check</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
                   </button>
                 </div>
+                {error && (
+                  <p className="text-xs text-rose-400 flex items-center space-x-1.5 mt-2">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>{error}</span>
+                  </p>
+                )}
               </form>
             ) : (
               <div className="p-4 rounded-xl bg-white/5 border border-white/5 animate-fade-in space-y-3">

@@ -46,16 +46,6 @@ def find_best_faq_match(user_query: str):
 
 def handle_support_chat(message: str, chat_history):
     logger.info(f"Handling support chat for message: '{message[:30]}...'")
-    
-    # Check for simple greetings to avoid accidental human escalation lockouts
-    clean_msg = message.strip().lower().replace("?", "").replace("!", "")
-    greetings = {"hi", "hello", "hey", "greetings", "good morning", "good afternoon", "good evening", "howdy", "sup"}
-    if clean_msg in greetings:
-        return {
-            "response": "Hello! How can I help you today? Feel free to ask about Aether Agents features, subscription rates, or developer API integrations.",
-            "escalate_to_human": False
-        }
-
     faq, score = find_best_faq_match(message)
     
     logger.info(f"FAQ Match score: {score:.2f}")

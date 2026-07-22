@@ -12,5 +12,7 @@ class DocumentRequest(BaseModel):
 def run_analysis(req: DocumentRequest):
     try:
         return analyze_document(data_raw=req.data_raw, file_type=req.file_type)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

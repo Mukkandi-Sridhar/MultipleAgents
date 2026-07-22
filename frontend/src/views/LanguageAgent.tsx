@@ -11,13 +11,22 @@ export const LanguageAgent: React.FC = () => {
   const [xp, setXp] = useState(120);
   const [error, setError] = useState<string | null>(null);
 
+  const [sessionId] = useState(() => {
+    let sid = sessionStorage.getItem('aether_language_session_id');
+    if (!sid) {
+      sid = 'session_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+      sessionStorage.setItem('aether_language_session_id', sid);
+    }
+    return sid;
+  });
+
   // Sync initial stats from localStorage if they exist
   useEffect(() => {
-    const s = localStorage.getItem('aether_streak');
-    const x = localStorage.getItem('aether_xp');
+    const s = localStorage.getItem('aether_streak_' + sessionId);
+    const x = localStorage.getItem('aether_xp_' + sessionId);
     if (s) setStreak(parseInt(s));
     if (x) setXp(parseInt(x));
-  }, []);
+  }, [sessionId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +38,10 @@ export const LanguageAgent: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/api/language/practice`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_text: inputText })
+        body: JSON.stringify({ 
+          student_text: inputText,
+          session_id: sessionId 
+        })
       });
       if (!response.ok) throw new Error('API server returned error');
       const data = await response.json();
@@ -37,8 +49,8 @@ export const LanguageAgent: React.FC = () => {
       setResult(data);
       setStreak(data.streak);
       setXp(data.xp);
-      localStorage.setItem('aether_streak', String(data.streak));
-      localStorage.setItem('aether_xp', String(data.xp));
+      localStorage.setItem('aether_streak_' + sessionId, String(data.streak));
+      localStorage.setItem('aether_xp_' + sessionId, String(data.xp));
       // Dispatch a custom event to notify Header.tsx to reload
       window.dispatchEvent(new Event('aether_stats_update'));
     } catch (err) {

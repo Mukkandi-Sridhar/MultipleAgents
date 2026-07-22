@@ -4,7 +4,14 @@ import io
 from pypdf import PdfReader
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
-from services.llm_service import extract_question_from_image, get_concept_explanation, evaluate_answer, classify_question_text
+from services.llm_service import (
+    extract_question_from_image, 
+    get_concept_explanation, 
+    evaluate_answer, 
+    classify_question_text,
+    evaluate_mastery_answer,
+    LLMServiceError
+)
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +21,11 @@ class CheckAnswerRequest(BaseModel):
     extracted_text: str
     student_answer: str
     attempt_number: int
+
+class MasteryCheckRequest(BaseModel):
+    mastery_question: str
+    mastery_answer: str = ""
+    student_answer: str
 
 @router.post("/demo")
 def load_demo():
@@ -105,6 +117,14 @@ async def upload_question(file: UploadFile = File(...)):
             "prompt": explanation_data.get("prompt")
         }
 
+    except LLMServiceError as e:
+        logger.error(f"Error handling upload: {e}")
+        raise HTTPException(
+            status_code=502, 
+            detail=f"AI service failed while processing your homework: {str(e)}. Please try again."
+        )
+    except HTTPException as he:
+        raise he
     except Exception as e:
         logger.error(f"Error handling upload: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process image: {str(e)}")
@@ -126,3 +146,21 @@ def check_answer(req: CheckAnswerRequest):
     except Exception as e:
         logger.error(f"Error checking answer: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to evaluate answer: {str(e)}")
+
+@router.post("/mastery-check")
+def check_mastery(req: MasteryCheckRequest):
+    logger.info(f"Checking mastery answer for question: '{req.mastery_question[:30]}...'")
+    try:
+        return evaluate_mastery_answer(
+            mastery_question=req.mastery_question,
+            mastery_answer_expected=req.mastery_answer,
+            student_answer=req.student_answer
+        )
+    except LLMServiceError as e:
+        logger.error(f"LLMServiceError in mastery check: {e}")
+        raise HTTPException(status_code=502, detail=f"AI service failed while checking mastery: {str(e)}")
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error checking mastery answer: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to evaluate mastery answer: {str(e)}")
