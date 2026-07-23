@@ -6,6 +6,7 @@ import { API_BASE_URL } from '../lib/apiConfig';
 
 export const DocumentAgent: React.FC = () => {
   const [inputText, setInputText] = useState('');
+  const [fileType, setFileType] = useState<string>('csv');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DocumentResponse | null>(null);
   const [copied, setCopied] = useState(false);
@@ -20,12 +21,25 @@ export const DocumentAgent: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'csv';
+    setFileType(ext);
+
+    const isBinary = ext === 'pdf' || ext === 'xlsx' || ext === 'xls';
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      setInputText(text);
-    };
-    reader.readAsText(file);
+
+    if (isBinary) {
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setInputText(result || '');
+      };
+      reader.readAsDataURL(file);
+    } else {
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        setInputText(text || '');
+      };
+      reader.readAsText(file);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,13 +49,22 @@ export const DocumentAgent: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const isJson = inputText.trim().startsWith('{') || inputText.trim().startsWith('[');
+      let inferredType = fileType;
+      const trimmed = inputText.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        inferredType = 'json';
+      } else if (inputText.startsWith('data:application/pdf') || inputText.startsWith('%PDF')) {
+        inferredType = 'pdf';
+      } else if (inputText.startsWith('data:application/vnd') || inputText.startsWith('PK')) {
+        inferredType = 'xlsx';
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/documents/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           data_raw: inputText,
-          file_type: isJson ? 'json' : 'csv'
+          file_type: inferredType
         })
       });
       if (!response.ok) {
@@ -102,12 +125,12 @@ export const DocumentAgent: React.FC = () => {
               className="border-2 border-dashed border-white/10 hover:border-brand-500/40 rounded-2xl p-6 text-center cursor-pointer hover:bg-white/5 transition-all duration-200 mb-4 group"
             >
               <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">[ upload dataset ]</p>
-              <p className="text-slate-500 text-[10px]">Supports .csv or .json formatted text files</p>
+              <p className="text-slate-500 text-[10px]">Supports .csv, .json, .xlsx, .pdf, or .txt files</p>
               <input 
                 type="file" 
                 ref={fileInputRef}
                 onChange={handleFileChange}
-                accept=".csv,.json"
+                accept=".csv,.json,.xlsx,.xls,.pdf,.txt"
                 className="hidden" 
               />
             </div>
