@@ -380,9 +380,31 @@ def parse_data(data_raw: str, file_type: str = "csv"):
                     lbl = "Unknown"
                 label_sums[lbl] = label_sums.get(lbl, 0.0) + c_val
 
+    # Fallback for categorical datasets (e.g. applicant lists, rosters, logs) with no numeric metric columns
+    if valid_record_count == 0 or not label_sums:
+        cat_candidates = [
+            k for k in keys 
+            if k.lower() not in ("id", "link", "resume", "url", "applied at", "created_at", "updated_at", "timestamp")
+        ]
+        
+        cat_key = cat_candidates[0] if cat_candidates else (keys[0] if keys else None)
+        for k in cat_candidates:
+            if any(term in k.lower() for term in ("position", "status", "role", "category", "title", "department", "type", "name", "state", "city")):
+                cat_key = k
+                break
+
+        if cat_key:
+            for r in records:
+                lbl = str(r.get(cat_key, "Unknown")).strip() or "Unknown"
+                if len(lbl) > 50:
+                    lbl = lbl[:47] + "..."
+                label_sums[lbl] = label_sums.get(lbl, 0.0) + 1.0
+                valid_record_count += 1
+            sum_value = float(valid_record_count)
+
     if valid_record_count == 0 or not label_sums:
         return {
-            "parse_error": "Couldn't detect numeric data in your file — check that it has at least one numeric column.",
+            "parse_error": "Could not parse any records from your file — check that it is a valid CSV, JSON, XLSX, PDF, or text table.",
             "record_count": 0,
             "sum_value": 0.0,
             "mean_value": 0.0,
@@ -391,13 +413,16 @@ def parse_data(data_raw: str, file_type: str = "csv"):
             "data_points": []
         }
 
-    mean_value = sum_value / valid_record_count
+    mean_value = (sum_value / valid_record_count) if val_key else 1.0
 
-    top_label = max(label_sums, key=label_sums.get)
-    top_value = label_sums[top_label]
+    # Sort categories by frequency/value descending
+    sorted_label_sums = dict(sorted(label_sums.items(), key=lambda item: item[1], reverse=True))
+
+    top_label = max(sorted_label_sums, key=sorted_label_sums.get)
+    top_value = sorted_label_sums[top_label]
 
     data_points = []
-    for k, v in list(label_sums.items())[:6]:  # Limit to top 6 categories
+    for k, v in list(sorted_label_sums.items())[:6]:  # Limit to top 6 categories
         data_points.append({"label": str(k), "value": float(v)})
 
     return {
